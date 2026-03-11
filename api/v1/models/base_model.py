@@ -1,6 +1,6 @@
 """This is the Base Model Class"""
 
-from uuid_extensions import uuid7
+import uuid
 from fastapi import Depends
 from api.db.database import Base
 from sqlalchemy import Column, String, DateTime, func
@@ -11,7 +11,7 @@ class BaseTableModel(Base):
 
     __abstract__ = True
 
-    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid7().hex))
+    id = Column(String, primary_key=True, index=True, default=lambda: uuid.uuid4().hex)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

@@ -17,15 +17,11 @@ def get_db_engine(test_mode: bool = False):
     DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
     if DB_TYPE == "sqlite" or test_mode:
-        BASE_PATH = f"sqlite:///{BASE_DIR}"
-        DATABASE_URL = BASE_PATH + "/"
-
-        if test_mode:
-            DATABASE_URL = BASE_PATH + "test.db"
-
-            return create_engine(
-                DATABASE_URL, connect_args={"check_same_thread": False}
-            )
+        db_name = "test.db" if test_mode else f"{DB_NAME}.db"
+        DATABASE_URL = f"sqlite:///{BASE_DIR}/{db_name}"
+        return create_engine(
+            DATABASE_URL, connect_args={"check_same_thread": False}
+        )
     elif DB_TYPE == "postgresql":
         DATABASE_URL = (
             f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"

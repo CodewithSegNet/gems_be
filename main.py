@@ -1,11 +1,9 @@
 import sys
 import uvicorn, os, time
-from typing import Optional
 from sqlalchemy.exc import IntegrityError
-from fastapi import HTTPException, Query, Request
-from fastapi.templating import Jinja2Templates
+from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, status
 from fastapi.staticfiles import StaticFiles
@@ -15,8 +13,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from collections import defaultdict
 
-from api.db.database import get_db
-from api.loggers.app_logger import app_logger
+from api.db.database import get_db, create_database
+from api.v1.models import *  # noqa: F401, F403 — import all models to register them
 from api.utils.success_response import success_response
 from api.v1.routes import api_version_one
 from api.utils.settings import settings
@@ -24,12 +22,22 @@ from api.utils.settings import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Create all database tables on startup
+    create_database()
+    
+    # Seed initial data
     db = next(get_db())
+    try:
+        seed_database(db)
+    except Exception as e:
+        print(f"Seeding info: {e}")
+    finally:
+        db.close()
 
     yield
 
 
-app = FastAPI(lifespan=lifespan, title="FastAPI Boilerplate", version="1.0.0")
+app = FastAPI(lifespan=lifespan, title="Gems Ore API", version="1.0.0")
 
 
 MEDIA_DIR = "./media"
@@ -47,14 +55,18 @@ origins = [
     "http://localhost:3001",
     "http://localhost:5173",
     "http://localhost:5174",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+    "https://www.gemsore.com",
+    "https://www.gemsore.com/",
+    "https://gemsore.com"
 ]
 
 
-# In-memory request counter by endpoint and IP address
+# Middleware to track request counts
 request_counter = defaultdict(lambda: defaultdict(int))
 
 
-# Middleware to track request counts and IP addresses
 class RequestCountMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         endpoint = request.url.path
@@ -75,31 +87,19 @@ app.add_middleware(
 )
 
 
-# Middleware to log details after each request
+# Request logging middleware
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    # Capture request start time
     start_time = time.time()
-
-    # Process the request
     response = await call_next(request)
-
-    # Calculate processing time
     process_time = time.time() - start_time
     formatted_process_time = f"{process_time:.3f}s"
-
-    # Capture request and response details
     client_ip = request.client.host
     method = request.method
     url = request.url.path
     status_code = response.status_code
-
-    # Format the log string similar to your example
     log_string = f'{client_ip} - "{method} {url} HTTP/1.1" {status_code} - {formatted_process_time}'
-
-    # Log the formatted string
-    app_logger.info(log_string)
-
+    print(log_string)
     return response
 
 
@@ -108,112 +108,97 @@ app.include_router(api_version_one)
 
 @app.get("/", tags=["Home"])
 async def get_root(request: Request) -> dict:
-    return success_response(message="Welcome to API", status_code=status.HTTP_200_OK)
-
-
-@app.get("/request-stats", response_model=success_response, tags=["Home"])
-async def get_request_stats():
-    """Endpoint to get request stats"""
-
-    return success_response(
-        status_code=status.HTTP_200_OK,
-        message="Endpoints request retreived successfully",
-        data={
-            "request_counts": {
-                endpoint: dict(ips) for endpoint, ips in request_counter.items()
-            }
-        },
-    )
+    return success_response(message="Welcome to Gems Ore API", status_code=status.HTTP_200_OK)
 
 
 # REGISTER EXCEPTION HANDLERS
 @app.exception_handler(HTTPException)
 async def http_exception(request: Request, exc: HTTPException):
-    """HTTP exception handler"""
-
-    exc_type, exc_obj, exc_tb = sys.exc_info()
-    app_logger.info(
-        f"HTTPException: {request.url.path} | {exc.status_code} | {exc.detail}"
-    )
-    app_logger.info(
-        f"[ERROR] - An error occured | {exc}, {exc_type} {exc_obj} line {exc_tb.tb_lineno}"
-    )
-
     return JSONResponse(
         status_code=exc.status_code,
-        content={
-            "status": False,
-            "status_code": exc.status_code,
-            "message": exc.detail,
-        },
+        content={"status": False, "status_code": exc.status_code, "message": exc.detail},
     )
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception(request: Request, exc: RequestValidationError):
-    """Validation exception handler"""
-
-    errors = [
-        {"loc": error["loc"], "msg": error["msg"], "type": error["type"]}
-        for error in exc.errors()
-    ]
-
-    exc_type, exc_obj, exc_tb = sys.exc_info()
-    app_logger.info(f"RequestValidationError: {request.url.path} | {errors}")
-    app_logger.info(
-        f"[ERROR] - An error occured | {exc}, {exc_type} {exc_obj} line {exc_tb.tb_lineno}"
-    )
-
+    errors = [{"loc": error["loc"], "msg": error["msg"], "type": error["type"]} for error in exc.errors()]
     return JSONResponse(
         status_code=422,
-        content={
-            "status": False,
-            "status_code": 422,
-            "message": "Invalid input",
-            "errors": errors,
-        },
+        content={"status": False, "status_code": 422, "message": "Invalid input", "errors": errors},
     )
 
 
 @app.exception_handler(IntegrityError)
 async def integrity_exception(request: Request, exc: IntegrityError):
-    """Integrity error exception handlers"""
-
-    exc_type, exc_obj, exc_tb = sys.exc_info()
-    app_logger.info(f"Exception occured | {request.url.path} | 500")
-    app_logger.info(
-        f"[ERROR] - An error occured | {exc}, {exc_type} {exc_obj} {exc_tb.tb_lineno}"
-    )
-
     return JSONResponse(
         status_code=500,
-        content={
-            "status": False,
-            "status_code": 500,
-            "message": f"An unexpected error occurred: {exc}",
-        },
+        content={"status": False, "status_code": 500, "message": f"Database integrity error: {exc}"},
     )
 
 
 @app.exception_handler(Exception)
 async def exception(request: Request, exc: Exception):
-    """Other exception handlers"""
-
     exc_type, exc_obj, exc_tb = sys.exc_info()
-    app_logger.info(f"Exception occured | {request.url.path} | 500")
-    app_logger.info(
-        f"[ERROR] - An error occured | {exc}, {exc_type} {exc_obj} {exc_tb.tb_lineno}"
-    )
-
+    print(f"[ERROR] {exc}, {exc_type} line {exc_tb.tb_lineno if exc_tb else '?'}")
     return JSONResponse(
         status_code=500,
-        content={
-            "status": False,
-            "status_code": 500,
-            "message": f"An unexpected error occurred: {exc}",
-        },
+        content={"status": False, "status_code": 500, "message": f"An unexpected error occurred: {exc}"},
     )
+
+
+def seed_database(db):
+    """Seed the database with initial categories and an admin user."""
+    from api.v1.models.category import Category
+    from api.v1.models.user import User
+    from api.v1.services.auth import auth_service
+
+    # Seed admin user
+    existing_admin = db.query(User).filter(User.email == "admin@gemsore.com").first()
+    if not existing_admin:
+        auth_service.register(
+            db=db,
+            email="admin@gemsore.com",
+            password="admin123",
+            first_name="Admin",
+            last_name="Gems Ore",
+            is_admin=True,
+        )
+        print("✅ Admin user seeded: admin@gemsore.com / admin123")
+
+    # Seed default categories
+    default_categories = [
+        {"name": "Rings", "description": "Beautiful diamond and gemstone rings"},
+        {"name": "Necklaces", "description": "Elegant necklaces for all occasions"},
+        {"name": "Earrings", "description": "Stunning earrings collection"},
+        {"name": "Bracelets", "description": "Luxury bracelets and bangles"},
+        {"name": "Pendants", "description": "Decorative pendants and charms"},
+    ]
+
+    for cat_data in default_categories:
+        existing = db.query(Category).filter(Category.name == cat_data["name"]).first()
+        if not existing:
+            cat = Category(**cat_data)
+            db.add(cat)
+    
+    db.commit()
+    print("✅ Default categories seeded")
+
+    # Seed default settings (wallet addresses)
+    from api.v1.models.setting import Setting
+    default_settings = {
+        "btc_address": "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+        "usdt_erc20": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0",
+        "usdt_bep20": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0",
+        "usdt_trc20": "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE",
+    }
+    for key, value in default_settings.items():
+        existing = db.query(Setting).filter(Setting.key == key).first()
+        if not existing:
+            db.add(Setting(key=key, value=value))
+    db.commit()
+    print("✅ Default settings seeded")
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", port=7001, reload=True, workers=4, reload_excludes=["logs"])
+    uvicorn.run("main:app", port=7001, reload=True, workers=1, reload_excludes=["logs"])

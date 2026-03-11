@@ -1,30 +1,50 @@
-from pydantic import BaseModel, Field, validator
+"""Auth Schemas"""
+
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
-from datetime import datetime
 import re
 
 
+class LoginRequest(BaseModel):
+    email: str = Field(..., min_length=3)
+    password: str = Field(..., min_length=6)
 
-
-
-class SignInRequest(BaseModel):
-    """Schema for sign in request"""
-
-    phone_number: str = Field(..., min_length=10, max_length=20)
-
-    @validator("phone_number")
-    def validate_phone_number(cls, v):
-        v = v.strip().replace(" ", "").replace("-", "")
-
-        if not re.match(r"^\+?[1-9]\d{1,14}$", v):
-            raise ValueError("Invalid phone number format")
-
-        if not v.startswith("+"):
-            if v.startswith("0"):
-                v = "+234" + v[1:]
-            elif len(v) == 10:
-                v = "+234" + v
-            else:
-                v = "+" + v
-
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v):
+        v = v.strip().lower()
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", v):
+            raise ValueError("Invalid email format")
         return v
+
+
+class SignUpRequest(BaseModel):
+    email: str = Field(..., min_length=3)
+    password: str = Field(..., min_length=6)
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v):
+        v = v.strip().lower()
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", v):
+            raise ValueError("Invalid email format")
+        return v
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: dict
+
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    is_admin: bool = False
+
+    class Config:
+        from_attributes = True

@@ -133,6 +133,47 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     )
 
 
+class AdminLoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+@auth.post("/admin-login", status_code=status.HTTP_200_OK)
+def admin_login(request: AdminLoginRequest, db: Session = Depends(get_db)):
+    """Admin login with email and password."""
+    user = db.query(User).filter(User.email == request.email.lower().strip()).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not pwd_context.verify(request.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is inactive")
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access only")
+
+    token = create_access_token(data={
+        "user_id": user.id,
+        "email": user.email,
+        "is_admin": user.is_admin,
+    })
+
+    return success_response(
+        status_code=status.HTTP_200_OK,
+        message="Admin login successful",
+        data={
+            "access_token": token,
+            "token_type": "bearer",
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "is_admin": user.is_admin,
+            },
+        },
+    )
+
+
 @auth.get("/me", status_code=status.HTTP_200_OK)
 def get_me(current_user: User = Depends(get_current_user)):
     return success_response(

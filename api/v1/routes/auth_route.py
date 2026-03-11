@@ -101,11 +101,10 @@ def signup(request: SignUpRequest, db: Session = Depends(get_db)):
     user = auth_service.register(
         db=db,
         email=request.email,
-        password=request.password,
         first_name=request.first_name,
         last_name=request.last_name,
     )
-    login_result = auth_service.login(db=db, email=request.email, password=request.password)
+    login_result = auth_service.login(db=db, email=request.email)
     # Send welcome email
     try:
         send_welcome_email(request.email, request.first_name)
@@ -120,7 +119,7 @@ def signup(request: SignUpRequest, db: Session = Depends(get_db)):
 
 @auth.post("/login", status_code=status.HTTP_200_OK)
 def login(request: LoginRequest, db: Session = Depends(get_db)):
-    result = auth_service.login(db=db, email=request.email, password=request.password)
+    result = auth_service.login(db=db, email=request.email)
     # Send login notification
     try:
         user = db.query(User).filter(User.email == request.email).first()

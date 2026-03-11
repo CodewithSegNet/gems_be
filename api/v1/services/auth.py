@@ -21,7 +21,7 @@ class AuthService:
     def verify_password(plain_password: str, hashed_password: str) -> bool:
         return pwd_context.verify(plain_password, hashed_password)
 
-    def register(self, db: Session, email: str, password: str, first_name: str = None, last_name: str = None, is_admin: bool = False):
+    def register(self, db: Session, email: str, first_name: str = None, last_name: str = None, is_admin: bool = False):
         # Check if user already exists
         existing = db.query(User).filter(User.email == email.lower().strip()).first()
         if existing:
@@ -30,9 +30,10 @@ class AuthService:
                 detail="User with this email already exists"
             )
 
+        import uuid
         user = User(
             email=email.lower().strip(),
-            password_hash=self.hash_password(password),
+            password_hash=self.hash_password(uuid.uuid4().hex),  # random placeholder
             first_name=first_name,
             last_name=last_name,
             is_admin=is_admin,
@@ -51,18 +52,12 @@ class AuthService:
 
         return user
 
-    def login(self, db: Session, email: str, password: str):
+    def login(self, db: Session, email: str):
         user = db.query(User).filter(User.email == email.lower().strip()).first()
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
-            )
-
-        if not self.verify_password(password, user.password_hash):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
+                detail="No account found with this email"
             )
 
         if not user.is_active:

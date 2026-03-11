@@ -7,7 +7,6 @@ import re
 
 class LoginRequest(BaseModel):
     email: str = Field(..., min_length=3)
-    password: str = Field(..., min_length=6)
 
     @field_validator("email")
     @classmethod
@@ -20,7 +19,6 @@ class LoginRequest(BaseModel):
 
 class SignUpRequest(BaseModel):
     email: str = Field(..., min_length=3)
-    password: str = Field(..., min_length=6)
     first_name: Optional[str] = None
     last_name: Optional[str] = None
 

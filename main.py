@@ -59,7 +59,8 @@ origins = [
     "http://127.0.0.1:5174",
     "https://www.gemsore.com",
     "https://www.gemsore.com/",
-    "https://gemsore.com"
+    "https://gemsore.com",
+    "http://localhost:5173",
 ]
 
 

@@ -156,14 +156,16 @@ def seed_database(db):
     # Seed admin user
     existing_admin = db.query(User).filter(User.email == "admin@gemsore.com").first()
     if not existing_admin:
-        auth_service.register(
+        admin = auth_service.register(
             db=db,
             email="admin@gemsore.com",
-            password="admin123",
             first_name="Admin",
             last_name="Gems Ore",
             is_admin=True,
         )
+        # Set admin password for admin-login endpoint
+        admin.password_hash = auth_service.hash_password("admin123")
+        db.commit()
         print("✅ Admin user seeded: admin@gemsore.com / admin123")
 
     # Seed default categories

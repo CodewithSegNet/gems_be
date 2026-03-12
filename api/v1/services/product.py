@@ -6,6 +6,16 @@ from fastapi import HTTPException, status
 
 from api.v1.models.product import Product, ProductImage
 from api.v1.models.category import Category
+import re
+
+
+def _sanitize_image_url(url: str) -> str:
+    """Fix double-prefixed URLs like 'https://api.comhttps://res.cloudinary.com/...'"""
+    # Find if there's a second https:// or http:// embedded in the URL
+    match = re.search(r'(https?://res\.cloudinary\.com/.+)$', url)
+    if match and not url.startswith('https://res.cloudinary.com'):
+        return match.group(1)
+    return url
 
 
 class ProductService:
@@ -64,7 +74,7 @@ class ProductService:
         # Add images
         if image_urls:
             for i, url in enumerate(image_urls):
-                img = ProductImage(product_id=product.id, image_url=url, sort_order=i)
+                img = ProductImage(product_id=product.id, image_url=_sanitize_image_url(url), sort_order=i)
                 db.add(img)
 
         db.commit()
@@ -86,7 +96,7 @@ class ProductService:
             db.query(ProductImage).filter(ProductImage.product_id == product_id).delete()
             # Add new images
             for i, url in enumerate(image_urls):
-                img = ProductImage(product_id=product_id, image_url=url, sort_order=i)
+                img = ProductImage(product_id=product_id, image_url=_sanitize_image_url(url), sort_order=i)
                 db.add(img)
 
         db.commit()

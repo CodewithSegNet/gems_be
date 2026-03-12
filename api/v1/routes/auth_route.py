@@ -29,6 +29,26 @@ class OTPVerifyRequest(BaseModel):
     otp: str
 
 
+class CheckEmailRequest(BaseModel):
+    email: str
+
+
+@auth.post("/check-email", status_code=status.HTTP_200_OK)
+def check_email(request: CheckEmailRequest, db: Session = Depends(get_db)):
+    """Check if an email is registered before sending OTP."""
+    email = request.email.strip().lower()
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="No account found with this email. Please create an account first.")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is inactive")
+    return success_response(
+        status_code=status.HTTP_200_OK,
+        message="Email is registered",
+        data={"exists": True, "email": email},
+    )
+
+
 @auth.post("/send-otp", status_code=status.HTTP_200_OK)
 def send_otp(request: OTPRequest, background_tasks: BackgroundTasks):
     """Send a 6-digit OTP to the user's email."""

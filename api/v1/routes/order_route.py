@@ -146,7 +146,7 @@ def update_order_status(order_id: str, new_status: str = Query(...), reason: Opt
     o = order_service.update_status(db, order_id, new_status, reason)
     # Send status update email to customer
     try:
-        send_order_status_update(o.email, o.id, new_status, o.customer_name)
+        send_order_status_update(o.email, o.id, new_status, o.customer_name, cancellation_reason=reason if new_status == 'cancelled' else None)
     except Exception:
         pass
     return success_response(status_code=status.HTTP_200_OK, message="Order status updated", data={"id": o.id, "status": o.status})

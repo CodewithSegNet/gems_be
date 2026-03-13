@@ -232,7 +232,7 @@ def send_order_confirmation(to_email: str, order_id: str, total: float, customer
     _send(to_email, f"Order #{order_id[:8]} Confirmed! ✨", _base_template(content))
 
 
-def send_order_status_update(to_email: str, order_id: str, new_status: str, customer_name: str = None):
+def send_order_status_update(to_email: str, order_id: str, new_status: str, customer_name: str = None, cancellation_reason: str = None):
     """Send email when order status changes."""
     name = customer_name or "Customer"
     status_config = {
@@ -252,6 +252,12 @@ def send_order_status_update(to_email: str, order_id: str, new_status: str, cust
         <p style="color:#888;font-size:12px;font-family:monospace;margin:0;">Order #{order_id[:12]}...</p>
       </div>
       <p style="color:#444;font-size:15px;line-height:1.7;margin:16px 0;">{message}</p>
+      {f'''
+      <div style="background:#fef2f2;border-radius:10px;padding:16px 20px;margin:16px 0;border-left:4px solid #dc2626;">
+        <p style="color:#991b1b;font-size:13px;font-weight:600;margin:0 0 4px;">Reason for Cancellation:</p>
+        <p style="color:#444;font-size:14px;margin:0;">{cancellation_reason}</p>
+      </div>
+      ''' if new_status == 'cancelled' and cancellation_reason else ''}
     """
     _send(to_email, f"Order #{order_id[:8]} — {label}", _base_template(content))
 

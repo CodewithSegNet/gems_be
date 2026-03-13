@@ -17,6 +17,8 @@ PUBLIC_KEYS = [
     "usdt_bep20",
     "usdt_trc20",
     "ngn_to_usd_rate",
+    "vat_enabled",
+    "vat_rate",
 ]
 
 

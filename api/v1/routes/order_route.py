@@ -10,7 +10,7 @@ from api.utils.jwt_handler import get_current_user
 from api.v1.schemas.order import OrderCreate, OrderUpdate
 from api.v1.services.order import order_service
 from api.v1.models.user import User
-from api.v1.services.email import send_order_confirmation, send_order_status_update, send_admin_payment_notification
+from api.v1.services.email import send_order_confirmation, send_order_status_update, send_admin_payment_notification, send_delivery_status_update
 
 orders = APIRouter(prefix="/orders", tags=["Orders"])
 
@@ -155,6 +155,11 @@ def update_order_status(order_id: str, new_status: str = Query(...), reason: Opt
 @orders.patch("/{order_id}/delivery-status", status_code=status.HTTP_200_OK)
 def update_delivery_status(order_id: str, delivery_status: str = Query(...), db: Session = Depends(get_db)):
     o = order_service.update_delivery_status(db, order_id, delivery_status)
+    # Send delivery status email to customer
+    try:
+        send_delivery_status_update(o.email, o.id, delivery_status, o.customer_name)
+    except Exception:
+        pass
     return success_response(status_code=status.HTTP_200_OK, message="Delivery status updated", data={"id": o.id, "delivery_status": o.delivery_status})
 
 

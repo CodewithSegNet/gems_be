@@ -194,6 +194,30 @@ def admin_login(request: AdminLoginRequest, db: Session = Depends(get_db)):
     )
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@auth.post("/change-password", status_code=status.HTTP_200_OK)
+def change_password(request: ChangePasswordRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Change admin password. Requires current password verification."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access only")
+    if not current_user.password_hash or not pwd_context.verify(request.current_password, current_user.password_hash):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+    if len(request.new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+
+    current_user.password_hash = pwd_context.hash(request.new_password)
+    db.commit()
+
+    return success_response(
+        status_code=status.HTTP_200_OK,
+        message="Password changed successfully",
+    )
+
+
 @auth.get("/me", status_code=status.HTTP_200_OK)
 def get_me(current_user: User = Depends(get_current_user)):
     return success_response(

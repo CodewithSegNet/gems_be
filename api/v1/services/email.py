@@ -51,6 +51,9 @@ def _base_template(content: str) -> str:
         </div>
         <!-- Footer -->
         <div style="background:#f8f6f4;padding:24px 40px;text-align:center;border-top:1px solid #eee;">
+          <p style="color:#583931;font-size:13px;font-weight:600;margin:0 0 8px;">Need help? Contact us:</p>
+          <p style="color:#666;font-size:12px;margin:0 0 4px;">📞 <a href="tel:+2348052842509" style="color:#583931;text-decoration:none;">+234 8052842509</a></p>
+          <p style="color:#666;font-size:12px;margin:0 0 12px;">✉️ <a href="mailto:contact@gemsore.com" style="color:#583931;text-decoration:none;">contact@gemsore.com</a></p>
           <p style="color:#999;font-size:12px;margin:0;">&copy; 2026 Gems Ore. All rights reserved.</p>
           <p style="color:#bbb;font-size:11px;margin:8px 0 0;">This email was sent from Gems Ore. If you didn't expect this, please ignore it.</p>
         </div>
@@ -251,6 +254,34 @@ def send_order_status_update(to_email: str, order_id: str, new_status: str, cust
       <p style="color:#444;font-size:15px;line-height:1.7;margin:16px 0;">{message}</p>
     """
     _send(to_email, f"Order #{order_id[:8]} — {label}", _base_template(content))
+
+
+def send_delivery_status_update(to_email: str, order_id: str, delivery_status: str, customer_name: str = None):
+    """Send email when delivery status changes (shipped, in_transit, delivered)."""
+    name = customer_name or "Customer"
+    status_config = {
+        "shipped": ("📦", "#7c3aed", "Shipped", "Great news! Your order has been shipped and is on its way to you. You should receive it within the estimated delivery timeframe."),
+        "in_transit": ("🚚", "#2563eb", "In Transit", "Your order is currently in transit and will be delivered soon. Sit tight — it's almost there!"),
+        "delivered": ("✅", "#16a34a", "Delivered", "Your order has been delivered! We hope you love your new jewelry. Thank you for shopping with Gems Ore."),
+        "not_shipped": ("⏳", "#d97706", "Not Yet Shipped", "Your order is being prepared and will be shipped soon."),
+    }
+    emoji, color, label, message = status_config.get(delivery_status, ("📋", "#583931", delivery_status.replace("_", " ").title(), "Your delivery status has been updated."))
+    content = f"""
+      <h2 style="color:#583931;font-size:22px;margin:0 0 16px;">Delivery Status Update</h2>
+      <p style="color:#444;font-size:15px;line-height:1.7;margin:0 0 20px;">Hi {name},</p>
+      <div style="background:#f8f6f4;border-radius:12px;padding:24px;margin:20px 0;text-align:center;border:2px solid {color}20;">
+        <span style="font-size:36px;">{emoji}</span>
+        <p style="color:{color};font-size:18px;font-weight:700;margin:12px 0 4px;">{label}</p>
+        <p style="color:#888;font-size:12px;font-family:monospace;margin:0;">Order #{order_id[:12]}...</p>
+      </div>
+      <p style="color:#444;font-size:15px;line-height:1.7;margin:16px 0;">{message}</p>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="https://www.gemsore.com/history" style="background:linear-gradient(135deg,#583931,#7a5248);color:white;padding:12px 32px;text-decoration:none;border-radius:10px;font-size:14px;font-weight:600;display:inline-block;">
+          Track Your Order &rarr;
+        </a>
+      </div>
+    """
+    _send(to_email, f"Order #{order_id[:8]} — {label} {emoji}", _base_template(content))
 
 
 def send_admin_payment_notification(order_id: str, customer_email: str, total: float, payment_method: str, customer_name: str = None):

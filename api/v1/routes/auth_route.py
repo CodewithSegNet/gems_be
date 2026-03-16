@@ -218,6 +218,63 @@ def change_password(request: ChangePasswordRequest, current_user: User = Depends
     )
 
 
+class UpdateCredentialsRequest(BaseModel):
+    current_password: str
+    new_password: str | None = None
+    new_email: str | None = None
+
+
+@auth.post("/update-credentials", status_code=status.HTTP_200_OK)
+def update_credentials(request: UpdateCredentialsRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Update admin credentials (email and/or password). Requires current password verification."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access only")
+    if not current_user.password_hash or not pwd_context.verify(request.current_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+    changes = []
+
+    # Update email if provided
+    if request.new_email and request.new_email.strip().lower() != current_user.email:
+        new_email = request.new_email.strip().lower()
+        # Check uniqueness
+        existing = db.query(User).filter(User.email == new_email, User.id != current_user.id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="This email is already in use by another account")
+        current_user.email = new_email
+        changes.append("email")
+
+    # Update password if provided
+    if request.new_password:
+        if len(request.new_password) < 6:
+            raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+        current_user.password_hash = pwd_context.hash(request.new_password)
+        changes.append("password")
+
+    if not changes:
+        raise HTTPException(status_code=400, detail="No changes provided")
+
+    db.commit()
+    db.refresh(current_user)
+
+    # Issue a new JWT token with updated email
+    new_token = create_access_token(data={
+        "user_id": current_user.id,
+        "email": current_user.email,
+        "is_admin": current_user.is_admin,
+    })
+
+    return success_response(
+        status_code=status.HTTP_200_OK,
+        message=f"Admin {' and '.join(changes)} updated successfully",
+        data={
+            "email": current_user.email,
+            "access_token": new_token,
+            "changes": changes,
+        },
+    )
+
+
 @auth.get("/me", status_code=status.HTTP_200_OK)
 def get_me(current_user: User = Depends(get_current_user)):
     return success_response(

@@ -9,7 +9,7 @@ class Review(BaseTableModel):
 
     customer_name = Column(String, nullable=False)
     email = Column(String, nullable=False)
-    product_id = Column(String, ForeignKey("products.id"), nullable=True)
+    product_id = Column(String, ForeignKey("products.id", ondelete="CASCADE"), nullable=True)
     product_name = Column(String, nullable=True)  # Denormalized for easy display
     rating = Column(Integer, nullable=False, default=5)
     comment = Column(Text, nullable=True)

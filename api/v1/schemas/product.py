@@ -26,6 +26,7 @@ class ProductCreate(BaseModel):
     description: Optional[str] = None
     image_urls: Optional[List[str]] = []
     video_url: Optional[str] = None
+    video_position: Optional[int] = None
 
 
 class ProductUpdate(BaseModel):
@@ -40,6 +41,7 @@ class ProductUpdate(BaseModel):
     description: Optional[str] = None
     image_urls: Optional[List[str]] = None
     video_url: Optional[str] = None
+    video_position: Optional[int] = None
 
 
 class ProductResponse(BaseModel):
@@ -55,6 +57,7 @@ class ProductResponse(BaseModel):
     is_new_collection: bool = False
     description: Optional[str] = None
     video_url: Optional[str] = None
+    video_position: Optional[int] = None
     images: List[ProductImageResponse] = []
     image: Optional[str] = None  # First image URL for backward compatibility
     created_at: Optional[datetime] = None

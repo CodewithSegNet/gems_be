@@ -26,7 +26,10 @@ class ProductService:
         query = db.query(Product)
         
         if gender and gender != "all":
-            query = query.filter(Product.gender == gender)
+            if gender in ("male", "female"):
+                query = query.filter(Product.gender.in_([gender, "unisex"]))
+            else:
+                query = query.filter(Product.gender == gender)
         if category_id and category_id != "all":
             query = query.filter(Product.category_id == category_id)
         if status_filter and status_filter != "all":
@@ -50,7 +53,7 @@ class ProductService:
                status_val: str = "active", category_id: Optional[str] = None,
                is_best_seller: bool = False, is_new_collection: bool = False,
                description: Optional[str] = None, image_urls: Optional[List[str]] = None,
-               video_url: Optional[str] = None) -> Product:
+               video_url: Optional[str] = None, video_position: Optional[int] = None) -> Product:
         
         # Validate category exists if provided
         if category_id:
@@ -69,6 +72,7 @@ class ProductService:
             is_new_collection=is_new_collection,
             description=description,
             video_url=video_url,
+            video_position=video_position,
         )
         db.add(product)
         db.flush()  # Get the product ID

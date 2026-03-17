@@ -171,7 +171,7 @@ def upload_payment_proof(order_id: str, proof_url: str = Query(...), db: Session
         send_admin_payment_notification(o.id, o.email, o.total, o.payment_method, o.customer_name)
     except Exception:
         pass
-    return success_response(status_code=status.HTTP_200_OK, message="Payment proof uploaded", data={"id": o.id, "payment_proof": o.payment_proof})
+    return success_response(status_code=status.HTTP_200_OK, message="Payment proof uploaded", data={"id": o.id, "payment_proof": o.payment_proof, "status": o.status})
 
 
 @orders.patch("/{order_id}/approve-payment", status_code=status.HTTP_200_OK)

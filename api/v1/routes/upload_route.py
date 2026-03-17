@@ -126,3 +126,64 @@ async def upload_multiple_images(files: List[UploadFile] = File(...)):
         message="Images uploaded successfully",
         data={"urls": urls},
     )
+
+
+# ---------------------------------------------------------------------------
+# Video upload
+# ---------------------------------------------------------------------------
+ALLOWED_VIDEO_EXTENSIONS = {"mp4", "webm", "mov", "avi"}
+MAX_VIDEO_SIZE = 50 * 1024 * 1024  # 50MB
+
+
+def _validate_video(file: UploadFile):
+    """Validate video file extension."""
+    ext = file.filename.split(".")[-1].lower() if file.filename else ""
+    if ext not in ALLOWED_VIDEO_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"Invalid video type. Allowed: {', '.join(ALLOWED_VIDEO_EXTENSIONS)}")
+    return ext
+
+
+def _upload_video_to_cloudinary(content: bytes, ext: str) -> str:
+    """Upload video bytes to Cloudinary and return the secure URL."""
+    result = cloudinary.uploader.upload(
+        io.BytesIO(content),
+        folder="gems-ore/videos",
+        resource_type="video",
+        format=ext,
+    )
+    return result["secure_url"]
+
+
+def _save_video_locally(content: bytes, ext: str) -> str:
+    """Save video file to local media directory and return relative URL."""
+    new_filename = f"{token_hex(8)}.{ext}"
+    video_dir = os.path.join(MEDIA_DIR, "videos")
+    os.makedirs(video_dir, exist_ok=True)
+    file_path = os.path.join(video_dir, new_filename)
+    with open(file_path, "wb") as f:
+        f.write(content)
+    return f"/media/videos/{new_filename}"
+
+
+@upload.post("/video", status_code=status.HTTP_201_CREATED)
+async def upload_video(file: UploadFile = File(...)):
+    """Upload a single video file (mp4, webm, mov, avi). Max 50MB."""
+    ext = _validate_video(file)
+    content = await file.read()
+    if len(content) > MAX_VIDEO_SIZE:
+        raise HTTPException(status_code=400, detail="Video too large. Max size is 50MB.")
+
+    if _cloudinary_ready:
+        try:
+            url = _upload_video_to_cloudinary(content, ext)
+        except Exception as e:
+            print(f"⚠️  Cloudinary video upload failed ({e}), falling back to local storage")
+            url = _save_video_locally(content, ext)
+    else:
+        url = _save_video_locally(content, ext)
+
+    return success_response(
+        status_code=status.HTTP_201_CREATED,
+        message="Video uploaded successfully",
+        data={"url": url, "filename": url.split("/")[-1]},
+    )

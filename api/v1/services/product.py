@@ -49,7 +49,8 @@ class ProductService:
     def create(self, db: Session, name: str, price: float, stock: int, gender: str = "female",
                status_val: str = "active", category_id: Optional[str] = None,
                is_best_seller: bool = False, is_new_collection: bool = False,
-               description: Optional[str] = None, image_urls: Optional[List[str]] = None) -> Product:
+               description: Optional[str] = None, image_urls: Optional[List[str]] = None,
+               video_url: Optional[str] = None) -> Product:
         
         # Validate category exists if provided
         if category_id:
@@ -67,6 +68,7 @@ class ProductService:
             is_best_seller=is_best_seller,
             is_new_collection=is_new_collection,
             description=description,
+            video_url=video_url,
         )
         db.add(product)
         db.flush()  # Get the product ID

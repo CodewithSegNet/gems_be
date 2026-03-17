@@ -43,6 +43,7 @@ def get_all_products(
             "is_best_seller": p.is_best_seller,
             "is_new_collection": p.is_new_collection,
             "description": p.description,
+            "video_url": p.video_url,
             "images": images_list,
             "image": images_list[0]["image_url"] if images_list else None,
             "created_at": str(p.created_at) if p.created_at else None,
@@ -76,6 +77,7 @@ def get_product(product_id: str, db: Session = Depends(get_db)):
             "is_best_seller": p.is_best_seller,
             "is_new_collection": p.is_new_collection,
             "description": p.description,
+            "video_url": p.video_url,
             "images": images_list,
             "image": images_list[0]["image_url"] if images_list else None,
             "created_at": str(p.created_at) if p.created_at else None,
@@ -98,6 +100,7 @@ def create_product(data: ProductCreate, db: Session = Depends(get_db)):
         is_new_collection=data.is_new_collection,
         description=data.description,
         image_urls=data.image_urls,
+        video_url=data.video_url,
     )
     images_list = [{"id": img.id, "image_url": img.image_url, "sort_order": img.sort_order} for img in (p.images or [])]
     
@@ -116,6 +119,7 @@ def create_product(data: ProductCreate, db: Session = Depends(get_db)):
             "is_best_seller": p.is_best_seller,
             "is_new_collection": p.is_new_collection,
             "description": p.description,
+            "video_url": p.video_url,
             "images": images_list,
             "image": images_list[0]["image_url"] if images_list else None,
             "created_at": str(p.created_at) if p.created_at else None,
@@ -144,6 +148,8 @@ def update_product(product_id: str, data: ProductUpdate, db: Session = Depends(g
             "status": p.status,
             "is_best_seller": p.is_best_seller,
             "is_new_collection": p.is_new_collection,
+            "description": p.description,
+            "video_url": p.video_url,
             "images": images_list,
             "image": images_list[0]["image_url"] if images_list else None,
         },

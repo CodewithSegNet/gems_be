@@ -17,6 +17,7 @@ class Product(BaseTableModel):
     is_best_seller = Column(Boolean, default=False)
     is_new_collection = Column(Boolean, default=False)
     description = Column(Text, nullable=True)
+    video_url = Column(String, nullable=True)
 
     # Relationships
     category = relationship("Category", backref="products", lazy="joined")

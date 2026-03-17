@@ -37,6 +37,7 @@ def get_user_favorites(
                     "name": product.name,
                     "price": product.price,
                     "image": product.images[0].image_url if product.images else None,
+                    "video_url": product.video_url,
                     "category_name": product.category.name if product.category else None,
                 },
                 "created_at": str(f.created_at) if f.created_at else None,

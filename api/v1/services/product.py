@@ -92,8 +92,16 @@ class ProductService:
 
         image_urls = kwargs.pop("image_urls", None)
 
+        # These fields need to be explicitly nullable (allow clearing video)
+        nullable_fields = {"video_url", "video_position"}
+
         for key, value in kwargs.items():
-            if value is not None and hasattr(product, key):
+            if not hasattr(product, key):
+                continue
+            if key in nullable_fields:
+                # Always set nullable fields when present (even if None)
+                setattr(product, key, value)
+            elif value is not None:
                 setattr(product, key, value)
 
         # Update images if provided

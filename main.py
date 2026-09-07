@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from starlette.requests import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -77,6 +78,7 @@ class RequestCountMiddleware(BaseHTTPMiddleware):
         return response
 
 
+app.add_middleware(GZipMiddleware, minimum_size=500)  # compress responses > 500 bytes
 app.add_middleware(RequestCountMiddleware)
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 app.add_middleware(
@@ -204,4 +206,4 @@ def seed_database(db):
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", port=7001, reload=True, workers=1, reload_excludes=["logs"])
+    uvicorn.run("main:app", host="0.0.0.0", port=7001, reload=False, workers=4)

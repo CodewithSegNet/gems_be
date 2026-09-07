@@ -20,11 +20,15 @@ def _sanitize_image_url(url: str) -> str:
 
 class ProductService:
 
-    def get_all(self, db: Session, gender: Optional[str] = None, category_id: Optional[str] = None, 
-                status_filter: Optional[str] = None, search: Optional[str] = None,
-                is_best_seller: Optional[bool] = None, is_new_collection: Optional[bool] = None) -> List[Product]:
+    def get_all(
+        self, db: Session,
+        gender: Optional[str] = None, category_id: Optional[str] = None,
+        status_filter: Optional[str] = None, search: Optional[str] = None,
+        is_best_seller: Optional[bool] = None, is_new_collection: Optional[bool] = None,
+        page: int = 1, limit: int = 50,
+    ):
         query = db.query(Product)
-        
+
         if gender and gender != "all":
             if gender in ("male", "female"):
                 query = query.filter(Product.gender.in_([gender, "unisex"]))
@@ -40,8 +44,11 @@ class ProductService:
             query = query.filter(Product.is_best_seller == is_best_seller)
         if is_new_collection is not None:
             query = query.filter(Product.is_new_collection == is_new_collection)
-        
-        return query.order_by(Product.created_at.desc()).all()
+
+        total = query.count()
+        offset = (page - 1) * limit
+        items = query.order_by(Product.created_at.desc()).offset(offset).limit(limit).all()
+        return items, total
 
     def get_by_id(self, db: Session, product_id: str) -> Product:
         product = db.query(Product).filter(Product.id == product_id).first()

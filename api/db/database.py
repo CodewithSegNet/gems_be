@@ -27,7 +27,17 @@ def get_db_engine(test_mode: bool = False):
             f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
         )
 
-    return create_engine(DATABASE_URL)
+    return create_engine(
+        DATABASE_URL,
+        pool_size=3,          # keep 3 persistent connections (Render free tier)
+        max_overflow=5,       # allow 5 burst connections above pool_size
+        pool_pre_ping=True,   # validate conn before use — avoids stale conn errors
+        pool_recycle=300,     # recycle every 5 min (Supabase idle timeout guard)
+        connect_args={
+            "connect_timeout": 10,
+            "application_name": "gemsore-api",
+        },
+    )
 
 
 engine = get_db_engine()

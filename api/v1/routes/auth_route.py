@@ -3,7 +3,8 @@
 from fastapi import APIRouter, Depends, status, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-import random, time, threading
+import random, time
+from datetime import datetime, timedelta, timezone
 
 from api.db.database import get_db
 from api.utils.success_response import success_response
@@ -12,11 +13,12 @@ from api.v1.schemas.auth import LoginRequest, SignUpRequest
 from api.v1.services.auth import auth_service
 from api.v1.services.auth import pwd_context
 from api.v1.models.user import User
+from api.v1.models.otp import OtpCode
 from api.v1.services.email import send_welcome_email, send_login_notification, send_otp_email
 
 auth = APIRouter(prefix="/auth", tags=["Authentication"])
 
-# In-memory OTP store: { email: { "code": "123456", "expires": timestamp } }
+# In-memory OTP cache fallback: { email: { "code": "123456", "expires": timestamp } }
 _otp_store: dict = {}
 
 
@@ -50,28 +52,32 @@ def check_email(request: CheckEmailRequest, db: Session = Depends(get_db)):
 
 
 @auth.post("/send-otp", status_code=status.HTTP_200_OK)
-def send_otp(request: OTPRequest, background_tasks: BackgroundTasks):
-    """Send a 6-digit OTP to the user's email."""
+def send_otp(
+    request: OTPRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    """Send a 6-digit OTP to the user's email, stored in PostgreSQL for multi-worker safety."""
     email = request.email.strip().lower()
     code = str(random.randint(100000, 999999))
-    _otp_store[email] = {"code": code, "expires": time.time() + 600}  # 10 min expiry
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
 
-    # Fire SendGrid email in a separate thread so the API responds instantly
-    def _send_in_thread():
-        try:
-            result = send_otp_email(email, code)
-            if not result:
-                print(f"[OTP] SendGrid thread failed for {email}, will retry in background task")
-        except Exception as e:
-            print(f"[OTP] SendGrid thread error for {email}: {e}")
+    try:
+        # Clean up prior pending OTPs for this email in PostgreSQL
+        db.query(OtpCode).filter(OtpCode.email == email).delete()
+        db.add(OtpCode(email=email, code=code, expires_at=expires_at))
+        db.commit()
+    except Exception as db_err:
+        print(f"[OTP DB] Error saving OTP to database: {db_err}")
+        db.rollback()
 
-    thread = threading.Thread(target=_send_in_thread, daemon=True)
-    thread.start()
+    # In-memory cache fallback
+    _otp_store[email] = {"code": code, "expires": time.time() + 600}
 
-    # Also queue a BackgroundTasks retry as safety net (runs after response)
-    background_tasks.add_task(_background_retry_otp, email, code)
+    # Use ONLY FastAPI BackgroundTasks to send email once after response
+    background_tasks.add_task(send_otp_email, email, code)
 
-    print(f"[OTP] Code for {email}: {code}")
+    print(f"[OTP] Generated code for {email}: {code}")
 
     return success_response(
         status_code=status.HTTP_200_OK,
@@ -80,25 +86,46 @@ def send_otp(request: OTPRequest, background_tasks: BackgroundTasks):
     )
 
 
-def _background_retry_otp(email: str, code: str):
-    """Background task safety net: wait a bit, then retry if the OTP is still pending."""
-    import time as _time
-    _time.sleep(5)  # Wait 5 seconds for the thread to finish
-    # Only retry if the OTP is still in the store (not yet verified)
-    if email in _otp_store and _otp_store[email].get("code") == code:
-        print(f"[BACKGROUND] Retrying OTP for {email} via SendGrid as safety net...")
-        try:
-            send_otp_email(email, code)
-        except Exception:
-            pass
-
-
 @auth.post("/verify-otp", status_code=status.HTTP_200_OK)
-def verify_otp(request: OTPVerifyRequest):
-    """Verify the OTP code."""
+def verify_otp(request: OTPVerifyRequest, db: Session = Depends(get_db)):
+    """Verify the OTP code from PostgreSQL (multi-worker safe)."""
     email = request.email.strip().lower()
     otp = request.otp.strip()
+    now_utc = datetime.now(timezone.utc)
 
+    # 1. Check PostgreSQL first
+    record = (
+        db.query(OtpCode)
+        .filter(OtpCode.email == email)
+        .order_by(OtpCode.created_at.desc())
+        .first()
+    )
+
+    if record:
+        record_expires = record.expires_at
+        if record_expires.tzinfo is None:
+            record_expires = record_expires.replace(tzinfo=timezone.utc)
+
+        if now_utc > record_expires:
+            db.delete(record)
+            db.commit()
+            _otp_store.pop(email, None)
+            raise HTTPException(status_code=400, detail="OTP expired. Please request a new one.")
+
+        if record.code != otp:
+            raise HTTPException(status_code=400, detail="Invalid OTP code.")
+
+        # Valid OTP: delete and clean up
+        db.delete(record)
+        db.commit()
+        _otp_store.pop(email, None)
+        return success_response(
+            status_code=status.HTTP_200_OK,
+            message="OTP verified successfully",
+            data={"verified": True},
+        )
+
+    # 2. In-memory fallback
     stored = _otp_store.get(email)
     if not stored:
         raise HTTPException(status_code=400, detail="No OTP found. Please request a new one.")

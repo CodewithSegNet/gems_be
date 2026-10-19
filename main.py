@@ -19,6 +19,7 @@ from api.v1.models import *  # noqa: F401, F403 — import all models to registe
 from api.utils.success_response import success_response
 from api.v1.routes import api_version_one
 from api.utils.settings import settings
+from api.middleware.fast_guard import FastGuard
 
 
 @asynccontextmanager
@@ -65,21 +66,8 @@ origins = [
 ]
 
 
-# Middleware to track request counts
-request_counter = defaultdict(lambda: defaultdict(int))
-
-
-class RequestCountMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        endpoint = request.url.path
-        ip_address = request.client.host
-        request_counter[endpoint][ip_address] += 1
-        response = await call_next(request)
-        return response
-
-
-app.add_middleware(GZipMiddleware, minimum_size=500)  # compress responses > 500 bytes
-app.add_middleware(RequestCountMiddleware)
+app.add_middleware(FastGuard)            # ← rate limiting + IP ban (outermost)
+app.add_middleware(GZipMiddleware, minimum_size=1000)  # compress responses > 1000 bytes
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 app.add_middleware(
     CORSMiddleware,
@@ -206,4 +194,8 @@ def seed_database(db):
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=7001, reload=False, workers=4)
+    is_dev = settings.PYTHON_ENV == "development"
+    if is_dev:
+        uvicorn.run("main:app", host="0.0.0.0", port=7001, reload=True)
+    else:
+        uvicorn.run("main:app", host="0.0.0.0", port=7001, reload=False, workers=4)

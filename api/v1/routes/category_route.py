@@ -15,6 +15,7 @@ categories = APIRouter(prefix="/categories", tags=["Categories"])
 @categories.get("", status_code=status.HTTP_200_OK)
 def get_all_categories(
     search: Optional[str] = Query(None),
+    gender: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
     items = category_service.get_all(db, search=search)
@@ -24,7 +25,7 @@ def get_all_categories(
             "id": c.id,
             "name": c.name,
             "description": c.description,
-            "product_count": category_service.get_product_count(db, c.id),
+            "product_count": category_service.get_product_count(db, c.id, gender=gender),
             "created_at": str(c.created_at) if c.created_at else None,
         })
     

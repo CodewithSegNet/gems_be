@@ -21,8 +21,8 @@ class Product(BaseTableModel):
     video_position = Column(Integer, nullable=True, default=None)  # Position of video among media (0=first)
 
     # Relationships
-    category = relationship("Category", backref="products", lazy="joined")
-    images = relationship("ProductImage", backref="product", cascade="all, delete-orphan", lazy="joined")
+    category = relationship("Category", backref="products", lazy="selectin")
+    images = relationship("ProductImage", backref="product", cascade="all, delete-orphan", lazy="selectin")
 
 
 class ProductImage(BaseTableModel):

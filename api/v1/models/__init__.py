@@ -12,4 +12,5 @@ from api.v1.models.subscriber import Subscriber
 from api.v1.models.favorite import Favorite
 from api.v1.models.setting import Setting
 from api.v1.models.shipping import ShippingLocation
+from api.v1.models.otp import OtpCode
 

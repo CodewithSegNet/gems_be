@@ -9,8 +9,15 @@ from api.v1.models.order import Order
 
 class OrderService:
 
-    def get_all(self, db: Session, status_filter: Optional[str] = None,
-                payment_method: Optional[str] = None, search: Optional[str] = None) -> List[Order]:
+    def get_all(
+        self,
+        db: Session,
+        status_filter: Optional[str] = None,
+        payment_method: Optional[str] = None,
+        search: Optional[str] = None,
+        page: Optional[int] = None,
+        limit: Optional[int] = None,
+    ):
         query = db.query(Order)
         if status_filter and status_filter != "all":
             query = query.filter(Order.status == status_filter)
@@ -22,7 +29,12 @@ class OrderService:
                 (Order.email.ilike(f"%{search}%")) |
                 (Order.id.ilike(f"%{search}%"))
             )
-        return query.order_by(Order.created_at.desc()).all()
+        total = query.count()
+        query = query.order_by(Order.created_at.desc())
+        if page is not None and limit is not None:
+            offset = (page - 1) * limit
+            query = query.offset(offset).limit(limit)
+        return query.all(), total
 
     def get_by_id(self, db: Session, order_id: str) -> Order:
         order = db.query(Order).filter(Order.id == order_id).first()

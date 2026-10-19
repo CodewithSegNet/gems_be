@@ -22,8 +22,12 @@ class CategoryService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
         return category
 
-    def get_product_count(self, db: Session, category_id: str) -> int:
-        return db.query(Product).filter(Product.category_id == category_id).count()
+    def get_product_count(self, db: Session, category_id: str, gender: Optional[str] = None) -> int:
+        query = db.query(Product).filter(Product.category_id == category_id, Product.status == "active")
+        if gender:
+            norm_gender = "male" if gender in ("men", "male") else "female" if gender in ("women", "female") else gender
+            query = query.filter((Product.gender == norm_gender) | (Product.gender == "unisex"))
+        return query.count()
 
     def create(self, db: Session, name: str, description: Optional[str] = None) -> Category:
         existing = db.query(Category).filter(Category.name == name).first()

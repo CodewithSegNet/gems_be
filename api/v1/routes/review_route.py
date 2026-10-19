@@ -15,8 +15,29 @@ from api.v1.models.user import User
 reviews = APIRouter(prefix="/reviews", tags=["Reviews"])
 
 
-def _review_dict(r, db):
+def _build_review_dict(r, products_map=None):
     """Build review dict including product image."""
+    product_image = None
+    if r.product_id and products_map and r.product_id in products_map:
+        prod = products_map[r.product_id]
+        if prod and prod.images:
+            product_image = prod.images[0].image_url
+    return {
+        "id": r.id,
+        "customer_name": r.customer_name,
+        "email": r.email,
+        "product_id": r.product_id,
+        "product_name": r.product_name,
+        "product_image": product_image,
+        "rating": r.rating,
+        "comment": r.comment,
+        "status": r.status,
+        "created_at": str(r.created_at) if r.created_at else None,
+    }
+
+
+def _review_dict(r, db):
+    """Legacy helper for single-item lookups."""
     product_image = None
     if r.product_id:
         product = db.query(Product).filter(Product.id == r.product_id).first()
@@ -44,10 +65,18 @@ def get_all_reviews(
     db: Session = Depends(get_db),
 ):
     items = review_service.get_all(db, status_filter=status_filter, search=search, product_id=product_id)
+
+    # Pre-fetch all products in ONE query instead of one query per review (N+1 fix)
+    product_ids = list({r.product_id for r in items if r.product_id})
+    products_map = {}
+    if product_ids:
+        prods = db.query(Product).filter(Product.id.in_(product_ids)).all()
+        products_map = {p.id: p for p in prods}
+
     return success_response(
         status_code=status.HTTP_200_OK,
         message="Reviews retrieved successfully",
-        data=[_review_dict(r, db) for r in items],
+        data=[_build_review_dict(r, products_map) for r in items],
     )
 
 

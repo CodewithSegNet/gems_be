@@ -13,3 +13,5 @@ class CustomRequest(BaseTableModel):
     description = Column(Text, nullable=True)
     status = Column(String, nullable=False, default="pending")
     # 'pending', 'contacted', 'completed'
+    category = Column(String, nullable=True)
+    request_type = Column(String, nullable=False, default="general_custom")

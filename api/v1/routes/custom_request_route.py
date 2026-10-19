@@ -21,9 +21,15 @@ def get_all_requests(
     items = custom_request_service.get_all(db, status_filter=status_filter, search=search)
     result = [
         {
-            "id": cr.id, "full_name": cr.full_name, "email": cr.email,
-            "phone_number": cr.phone_number, "description": cr.description,
-            "status": cr.status, "created_at": str(cr.created_at) if cr.created_at else None,
+            "id": cr.id,
+            "full_name": cr.full_name,
+            "email": cr.email,
+            "phone_number": cr.phone_number,
+            "description": cr.description,
+            "status": cr.status,
+            "category": cr.category or "General",
+            "request_type": cr.request_type or "general_custom",
+            "created_at": str(cr.created_at) if cr.created_at else None,
         }
         for cr in items
     ]
@@ -34,7 +40,13 @@ def get_all_requests(
 def create_request(data: CustomRequestCreate, db: Session = Depends(get_db)):
     cr = custom_request_service.create(db, **data.model_dump())
     return success_response(status_code=status.HTTP_201_CREATED, message="Custom request created successfully",
-        data={"id": cr.id, "full_name": cr.full_name, "status": cr.status})
+        data={
+            "id": cr.id,
+            "full_name": cr.full_name,
+            "status": cr.status,
+            "category": cr.category,
+            "request_type": cr.request_type,
+        })
 
 
 @custom_requests.patch("/{request_id}/status", status_code=status.HTTP_200_OK)

@@ -10,6 +10,7 @@ from api.utils.jwt_handler import get_current_user
 from api.v1.schemas.order import OrderCreate, OrderUpdate
 from api.v1.services.order import order_service
 from api.v1.models.user import User
+from api.v1.models.order import Order
 from api.v1.services.email import send_order_confirmation, send_order_status_update, send_admin_payment_notification, send_delivery_status_update
 
 orders = APIRouter(prefix="/orders", tags=["Orders"])
@@ -50,13 +51,27 @@ def get_all_orders(
     status_filter: Optional[str] = Query(None, alias="status"),
     payment_method: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
 ):
-    items = order_service.get_all(db, status_filter=status_filter, payment_method=payment_method, search=search)
+    items, total = order_service.get_all(
+        db,
+        status_filter=status_filter,
+        payment_method=payment_method,
+        search=search,
+        page=page,
+        limit=limit,
+    )
     return success_response(
         status_code=status.HTTP_200_OK,
         message="Orders retrieved successfully",
-        data=[_order_dict(o) for o in items],
+        data={
+            "items": [_order_dict(o) for o in items],
+            "total": total,
+            "page": page,
+            "limit": limit,
+        },
     )
 
 
@@ -80,21 +95,28 @@ def has_purchased_product(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Check if the current user has purchased a specific product."""
-    import json as _json
-    user_orders = order_service.get_by_email(db, current_user.email)
-    for o in user_orders:
-        if o.status in ("completed", "processing", "pending", "delivered") and o.items_json:
-            try:
-                items = _json.loads(o.items_json)
-                if any(item.get("id") == product_id for item in items):
-                    return success_response(
-                        status_code=status.HTTP_200_OK,
-                        message="Purchase check",
-                        data={"purchased": True, "delivered": o.status == "delivered"},
-                    )
-            except (ValueError, TypeError):
-                pass
+    """Check if the current user has purchased a specific product (pushed to DB)."""
+    valid_statuses = ("completed", "processing", "pending", "delivered")
+    matching_order = (
+        db.query(Order)
+        .filter(
+            Order.email == current_user.email,
+            Order.status.in_(valid_statuses),
+            (
+                Order.items_json.like(f'%"id": "{product_id}"%')
+                | Order.items_json.like(f'%"id":"{product_id}"%')
+            ),
+        )
+        .first()
+    )
+
+    if matching_order:
+        return success_response(
+            status_code=status.HTTP_200_OK,
+            message="Purchase check",
+            data={"purchased": True, "delivered": matching_order.status == "delivered"},
+        )
+
     return success_response(
         status_code=status.HTTP_200_OK,
         message="Purchase check",

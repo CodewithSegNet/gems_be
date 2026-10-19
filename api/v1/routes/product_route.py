@@ -4,7 +4,7 @@ import time
 import hashlib
 import json
 
-from fastapi import APIRouter, Depends, status, Query, Response
+from fastapi import APIRouter, Depends, status, Query, Response, Request
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -12,6 +12,7 @@ from api.db.database import get_db
 from api.utils.success_response import success_response
 from api.v1.schemas.product import ProductCreate, ProductUpdate, ProductResponse
 from api.v1.services.product import product_service
+from api.utils.cloudinary_optimizer import optimize_product
 
 products = APIRouter(prefix="/products", tags=["Products"])
 
@@ -37,6 +38,7 @@ def invalidate_product_cache() -> None:
 
 @products.get("", status_code=status.HTTP_200_OK)
 def get_all_products(
+    request: Request,
     gender: Optional[str] = Query(None),
     category_id: Optional[str] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),
@@ -56,12 +58,27 @@ def get_all_products(
 
     # Serve from cache if still fresh
     if ck in _cache:
-        ts, cached_data = _cache[ck]
+        ts, cached_payload, etag = _cache[ck]
         if time.time() - ts < CACHE_TTL:
-            if response is not None:
-                response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=30"
-                response.headers["X-Cache"] = "HIT"
-            return cached_data
+            if request and request.headers.get("if-none-match") in (f'"{etag}"', etag):
+                return Response(
+                    status_code=status.HTTP_304_NOT_MODIFIED,
+                    headers={
+                        "ETag": f'"{etag}"',
+                        "Cache-Control": "public, max-age=60, stale-while-revalidate=30",
+                    },
+                )
+            return success_response(
+                status_code=status.HTTP_200_OK,
+                message="Products retrieved successfully",
+                data=cached_payload,
+                headers={
+                    "ETag": f'"{etag}"',
+                    "Cache-Control": "public, max-age=60, stale-while-revalidate=30",
+                    "Vary": "Accept-Encoding",
+                    "X-Cache": "HIT",
+                },
+            )
 
     items, total = product_service.get_all(
         db,
@@ -81,7 +98,7 @@ def get_all_products(
             {"id": img.id, "image_url": img.image_url, "sort_order": img.sort_order}
             for img in (p.images or [])
         ]
-        result.append({
+        raw = {
             "id": p.id,
             "name": p.name,
             "category_id": p.category_id,
@@ -99,22 +116,35 @@ def get_all_products(
             "image": images_list[0]["image_url"] if images_list else None,
             "created_at": str(p.created_at) if p.created_at else None,
             "updated_at": str(p.updated_at) if p.updated_at else None,
-        })
+        }
+        result.append(optimize_product(raw))
 
-    api_response = success_response(
-        status_code=status.HTTP_200_OK,
-        message="Products retrieved successfully",
-        data={"items": result, "total": total, "page": page, "limit": limit},
-    )
+    payload = {"items": result, "total": total, "page": page, "limit": limit}
+    etag = hashlib.md5(json.dumps(payload, default=str).encode()).hexdigest()[:16]
 
     # Store in cache
-    _cache[ck] = (time.time(), api_response)
+    _cache[ck] = (time.time(), payload, etag)
 
-    if response is not None:
-        response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=30"
-        response.headers["X-Cache"] = "MISS"
+    if request and request.headers.get("if-none-match") in (f'"{etag}"', etag):
+        return Response(
+            status_code=status.HTTP_304_NOT_MODIFIED,
+            headers={
+                "ETag": f'"{etag}"',
+                "Cache-Control": "public, max-age=60, stale-while-revalidate=30",
+            },
+        )
 
-    return api_response
+    return success_response(
+        status_code=status.HTTP_200_OK,
+        message="Products retrieved successfully",
+        data=payload,
+        headers={
+            "ETag": f'"{etag}"',
+            "Cache-Control": "public, max-age=60, stale-while-revalidate=30",
+            "Vary": "Accept-Encoding",
+            "X-Cache": "MISS",
+        },
+    )
 
 
 @products.get("/{product_id}", status_code=status.HTTP_200_OK)
@@ -124,11 +154,10 @@ def get_product(product_id: str, db: Session = Depends(get_db)):
         {"id": img.id, "image_url": img.image_url, "sort_order": img.sort_order}
         for img in (p.images or [])
     ]
-
     return success_response(
         status_code=status.HTTP_200_OK,
         message="Product retrieved successfully",
-        data={
+        data=optimize_product({
             "id": p.id,
             "name": p.name,
             "category_id": p.category_id,
@@ -146,7 +175,7 @@ def get_product(product_id: str, db: Session = Depends(get_db)):
             "image": images_list[0]["image_url"] if images_list else None,
             "created_at": str(p.created_at) if p.created_at else None,
             "updated_at": str(p.updated_at) if p.updated_at else None,
-        },
+        }),
     )
 
 
@@ -176,7 +205,7 @@ def create_product(data: ProductCreate, db: Session = Depends(get_db)):
     return success_response(
         status_code=status.HTTP_201_CREATED,
         message="Product created successfully",
-        data={
+        data=optimize_product({
             "id": p.id,
             "name": p.name,
             "category_id": p.category_id,
@@ -193,7 +222,7 @@ def create_product(data: ProductCreate, db: Session = Depends(get_db)):
             "images": images_list,
             "image": images_list[0]["image_url"] if images_list else None,
             "created_at": str(p.created_at) if p.created_at else None,
-        },
+        }),
     )
 
 

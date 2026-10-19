@@ -15,13 +15,26 @@ from api.v1.models.review import Review
 from api.v1.models.custom_request import CustomRequest
 from api.v1.models.category import Category
 
+import time as _time
+
 dashboard = APIRouter(prefix="/dashboard", tags=["Dashboard"])
+
+_dash_cache: dict = {}
+DASH_TTL = 60  # seconds
 
 
 @dashboard.get("/stats", status_code=status.HTTP_200_OK)
 def get_dashboard_stats(db: Session = Depends(get_db)):
     """Get overview statistics for the dashboard."""
-    
+    now_ts = _time.time()
+    if "stats" in _dash_cache and (now_ts - _dash_cache["stats"][0]) < DASH_TTL:
+        return success_response(
+            status_code=status.HTTP_200_OK,
+            message="Dashboard stats retrieved successfully",
+            data=_dash_cache["stats"][1],
+            headers={"X-Cache": "HIT"},
+        )
+
     # Revenue from completed orders
     total_revenue = db.query(func.sum(Order.total)).filter(Order.status == "completed").scalar() or 0
     
@@ -44,26 +57,38 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     # Average order value
     completed_orders_count = db.query(Order).filter(Order.status == "completed").count()
     avg_order_value = total_revenue / completed_orders_count if completed_orders_count > 0 else 0
+
+    stats_data = {
+        "total_revenue": round(total_revenue, 2),
+        "total_orders": total_orders,
+        "pending_orders": pending_orders,
+        "total_products": total_products,
+        "active_products": active_products,
+        "pending_reviews": pending_reviews,
+        "pending_requests": pending_requests,
+        "avg_order_value": round(avg_order_value, 2),
+    }
+    _dash_cache["stats"] = (now_ts, stats_data)
     
     return success_response(
         status_code=status.HTTP_200_OK,
         message="Dashboard stats retrieved successfully",
-        data={
-            "total_revenue": round(total_revenue, 2),
-            "total_orders": total_orders,
-            "pending_orders": pending_orders,
-            "total_products": total_products,
-            "active_products": active_products,
-            "pending_reviews": pending_reviews,
-            "pending_requests": pending_requests,
-            "avg_order_value": round(avg_order_value, 2),
-        },
+        data=stats_data,
+        headers={"X-Cache": "MISS"},
     )
 
 
 @dashboard.get("/chart-data", status_code=status.HTTP_200_OK)
 def get_dashboard_chart_data(db: Session = Depends(get_db)):
     """Get monthly sales/order trends and category breakdown for dashboard charts."""
+    now_ts = _time.time()
+    if "chart_data" in _dash_cache and (now_ts - _dash_cache["chart_data"][0]) < DASH_TTL:
+        return success_response(
+            status_code=status.HTTP_200_OK,
+            message="Chart data retrieved successfully",
+            data=_dash_cache["chart_data"][1],
+            headers={"X-Cache": "HIT"},
+        )
 
     # --- Monthly sales & order trends (last 6 months) ---
     now = datetime.utcnow()
@@ -119,13 +144,17 @@ def get_dashboard_chart_data(db: Session = Depends(get_db)):
         for row in category_rows
     ]
 
+    chart_payload = {
+        "sales_trend": sales_trend,
+        "category_breakdown": category_breakdown,
+    }
+    _dash_cache["chart_data"] = (now_ts, chart_payload)
+
     return success_response(
         status_code=status.HTTP_200_OK,
         message="Chart data retrieved successfully",
-        data={
-            "sales_trend": sales_trend,
-            "category_breakdown": category_breakdown,
-        },
+        data=chart_payload,
+        headers={"X-Cache": "MISS"},
     )
 
 

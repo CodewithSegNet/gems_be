@@ -17,6 +17,7 @@ from api.v1.routes.subscriber_route import subscribers
 from api.v1.routes.favorite_route import favorites
 from api.v1.routes.setting_route import setting_router
 from api.v1.routes.shipping_route import shipping
+from api.middleware.fast_guard import guard_admin_router
 
 
 api_version_one = APIRouter(prefix="/api/v1")
@@ -34,4 +35,5 @@ api_version_one.include_router(subscribers)
 api_version_one.include_router(favorites)
 api_version_one.include_router(setting_router)
 api_version_one.include_router(shipping)
+api_version_one.include_router(guard_admin_router)
 

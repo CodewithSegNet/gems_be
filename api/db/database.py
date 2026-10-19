@@ -14,8 +14,6 @@ DB_TYPE = settings.DB_TYPE
 
 
 def get_db_engine(test_mode: bool = False):
-    DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-
     if DB_TYPE == "sqlite" or test_mode:
         db_name = "test.db" if test_mode else f"{DB_NAME}.db"
         DATABASE_URL = f"sqlite:///{BASE_DIR}/{db_name}"
@@ -23,16 +21,25 @@ def get_db_engine(test_mode: bool = False):
             DATABASE_URL, connect_args={"check_same_thread": False}
         )
     elif DB_TYPE == "postgresql":
-        DATABASE_URL = (
-            f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-        )
+        if settings.DB_URL:
+            DATABASE_URL = settings.DB_URL
+        elif DB_PASSWORD:
+            DATABASE_URL = (
+                f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+            )
+        else:
+            DATABASE_URL = (
+                f"postgresql://{DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+            )
+    else:
+        DATABASE_URL = settings.DB_URL or f"postgresql://{DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
     return create_engine(
         DATABASE_URL,
         pool_size=3,          # keep 3 persistent connections (Render free tier)
         max_overflow=5,       # allow 5 burst connections above pool_size
         pool_pre_ping=True,   # validate conn before use — avoids stale conn errors
-        pool_recycle=300,     # recycle every 5 min (Supabase idle timeout guard)
+        pool_recycle=300,     # recycle every 5 min (idle timeout guard)
         connect_args={
             "connect_timeout": 10,
             "application_name": "gemsore-api",
@@ -50,7 +57,13 @@ Base = declarative_base()
 
 
 def create_database():
-    return Base.metadata.create_all(bind=engine)
+    try:
+        return Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        err = str(e).lower()
+        if "already exists" in err or "uniqueviolation" in err or "duplicate key" in err:
+            return None
+        raise e
 
 
 def get_db():

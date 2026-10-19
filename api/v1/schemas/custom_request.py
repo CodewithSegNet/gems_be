@@ -11,6 +11,8 @@ class CustomRequestCreate(BaseModel):
     phone_number: Optional[str] = None
     description: Optional[str] = None
     status: str = "pending"
+    category: Optional[str] = None
+    request_type: Optional[str] = "general_custom"
 
 
 class CustomRequestUpdate(BaseModel):
@@ -19,6 +21,8 @@ class CustomRequestUpdate(BaseModel):
     phone_number: Optional[str] = None
     description: Optional[str] = None
     status: Optional[str] = None
+    category: Optional[str] = None
+    request_type: Optional[str] = None
 
 
 class CustomRequestResponse(BaseModel):
@@ -28,6 +32,8 @@ class CustomRequestResponse(BaseModel):
     phone_number: Optional[str] = None
     description: Optional[str] = None
     status: str
+    category: Optional[str] = None
+    request_type: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

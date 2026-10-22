@@ -192,6 +192,32 @@ def seed_database(db):
     db.commit()
     print("✅ Default settings seeded")
 
+    # Seed products from seed_products.sql if empty
+    try:
+        from api.v1.models.product import Product
+        from sqlalchemy import text
+        if db.query(Product).count() == 0:
+            seed_file = os.path.join(os.path.dirname(__file__), "scripts", "seed_products.sql")
+            if os.path.exists(seed_file):
+                with open(seed_file, "r", encoding="utf-8") as f:
+                    content = f.read()
+                stmts = [
+                    s.strip()
+                    for s in content.split(";")
+                    if s.strip()
+                    and not s.strip().startswith("--")
+                    and s.strip() not in ("BEGIN", "COMMIT")
+                ]
+                for stmt in stmts:
+                    try:
+                        db.execute(text(stmt))
+                    except Exception:
+                        pass
+                db.commit()
+                print("✅ Products & collections successfully seeded")
+    except Exception as e:
+        print(f"⚠️ Product seeding info: {e}")
+
 
 if __name__ == "__main__":
     is_dev = settings.PYTHON_ENV == "development"

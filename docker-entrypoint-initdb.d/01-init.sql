@@ -183,16 +183,19 @@ CREATE TABLE IF NOT EXISTS reviews (
 	FOREIGN KEY(product_id) REFERENCES products (id) ON DELETE CASCADE
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS ix_categories_name ON categories (name);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_settings_key ON settings (key);
+
 BEGIN;
 
 -- Categories
-INSERT INTO categories (name, description, id, created_at, updated_at) VALUES ('Rings', 'Beautiful diamond and gemstone rings', 'd94a8651395941768c263ed7aa5cdfb5', '2026-03-12 02:45:42.772622+00:00', '2026-03-12 02:45:42.772622+00:00') ON CONFLICT (name) DO NOTHING;
-INSERT INTO categories (name, description, id, created_at, updated_at) VALUES ('Earrings', 'Stunning earrings collection', '91a55fc319ae4777876ced18f6ffd876', '2026-03-12 02:45:42.772622+00:00', '2026-03-12 02:45:42.772622+00:00') ON CONFLICT (name) DO NOTHING;
-INSERT INTO categories (name, description, id, created_at, updated_at) VALUES ('Bracelets', 'Luxury bracelets and bangles', '1712f321b6c54b6a940853bcc2fb2730', '2026-03-12 02:45:42.772622+00:00', '2026-03-12 02:45:42.772622+00:00') ON CONFLICT (name) DO NOTHING;
-INSERT INTO categories (name, description, id, created_at, updated_at) VALUES ('Pendants', 'Decorative pendants and charms', '63fef0bdd0de4675af0fb47981a931c5', '2026-03-12 02:45:42.772622+00:00', '2026-03-12 02:45:42.772622+00:00') ON CONFLICT (name) DO NOTHING;
-INSERT INTO categories (name, description, id, created_at, updated_at) VALUES ('Anklets', 'Beautiful leg pieces crafted for you ', '3f76877e59064afc8311231da14334aa', '2026-03-12 12:14:14.791939+00:00', '2026-03-12 12:14:14.791939+00:00') ON CONFLICT (name) DO NOTHING;
-INSERT INTO categories (name, description, id, created_at, updated_at) VALUES ('Necklaces', 'New Elegant necklaces for all occasions', 'f0bd408877e1477c92404a440c02d8c0', '2026-03-12 02:45:42.772622+00:00', '2026-03-16 11:41:43.684943+00:00') ON CONFLICT (name) DO NOTHING;
-INSERT INTO categories (name, description, id, created_at, updated_at) VALUES ('Watches', 'Elegant time pieces ', '027434d742364e5daf53277972bbf396', '2026-03-16 13:27:33.528838+00:00', '2026-03-16 13:27:33.528838+00:00') ON CONFLICT (name) DO NOTHING;
+INSERT INTO categories (name, description, id, created_at, updated_at) VALUES ('Rings', 'Beautiful diamond and gemstone rings', 'd94a8651395941768c263ed7aa5cdfb5', '2026-03-12 02:45:42.772622+00:00', '2026-03-12 02:45:42.772622+00:00') ON CONFLICT (id) DO NOTHING;
+INSERT INTO categories (name, description, id, created_at, updated_at) VALUES ('Earrings', 'Stunning earrings collection', '91a55fc319ae4777876ced18f6ffd876', '2026-03-12 02:45:42.772622+00:00', '2026-03-12 02:45:42.772622+00:00') ON CONFLICT (id) DO NOTHING;
+INSERT INTO categories (name, description, id, created_at, updated_at) VALUES ('Bracelets', 'Luxury bracelets and bangles', '1712f321b6c54b6a940853bcc2fb2730', '2026-03-12 02:45:42.772622+00:00', '2026-03-12 02:45:42.772622+00:00') ON CONFLICT (id) DO NOTHING;
+INSERT INTO categories (name, description, id, created_at, updated_at) VALUES ('Pendants', 'Decorative pendants and charms', '63fef0bdd0de4675af0fb47981a931c5', '2026-03-12 02:45:42.772622+00:00', '2026-03-12 02:45:42.772622+00:00') ON CONFLICT (id) DO NOTHING;
+INSERT INTO categories (name, description, id, created_at, updated_at) VALUES ('Anklets', 'Beautiful leg pieces crafted for you ', '3f76877e59064afc8311231da14334aa', '2026-03-12 12:14:14.791939+00:00', '2026-03-12 12:14:14.791939+00:00') ON CONFLICT (id) DO NOTHING;
+INSERT INTO categories (name, description, id, created_at, updated_at) VALUES ('Necklaces', 'New Elegant necklaces for all occasions', 'f0bd408877e1477c92404a440c02d8c0', '2026-03-12 02:45:42.772622+00:00', '2026-03-16 11:41:43.684943+00:00') ON CONFLICT (id) DO NOTHING;
+INSERT INTO categories (name, description, id, created_at, updated_at) VALUES ('Watches', 'Elegant time pieces ', '027434d742364e5daf53277972bbf396', '2026-03-16 13:27:33.528838+00:00', '2026-03-16 13:27:33.528838+00:00') ON CONFLICT (id) DO NOTHING;
 
 -- Products
 INSERT INTO products (name, category_id, price, stock, gender, status, is_best_seller, is_new_collection, description, id, created_at, updated_at, video_url, video_position) VALUES ('Hublot Classic Fusion Titanium Blue Dial 42mm', '027434d742364e5daf53277972bbf396', 13200000.0, 5, 'male', 'active', TRUE, TRUE, NULL, '8abc5f4dc58e471f9f7a6814d920cf94', '2026-04-01 23:00:32.763198+00:00', '2026-04-01 23:00:32.763198+00:00', 'https://res.cloudinary.com/dn7q2nlxt/video/upload/v1775084382/gems-ore/videos/kv4rwwdf2gwdbmckmhsx.mp4', NULL) ON CONFLICT (id) DO NOTHING;
@@ -241,19 +244,19 @@ INSERT INTO product_images (product_id, image_url, sort_order, id, created_at, u
 INSERT INTO product_images (product_id, image_url, sort_order, id, created_at, updated_at) VALUES ('ad57f1f1d6f14be7afb221908a352e95', 'https://res.cloudinary.com/dn7q2nlxt/image/upload/v1791644723/gems-ore/keqh3wvkbxz5pzq8pe1l.png', 0, '32fe54df06d84ffc8d37658d0d197fd8', '2026-10-10 15:08:54.540313+00:00', '2026-10-10 15:08:54.540313+00:00') ON CONFLICT (id) DO NOTHING;
 
 -- Settings
-INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('vat_number', 'GB123456789', '87ef44bda4c6429cb267b607ca15c16d', '2026-03-13 08:12:12.552036+00:00', '2026-03-13 08:12:12.552036+00:00') ON CONFLICT (key) DO NOTHING;
-INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('store_name', 'Gems Ore', '9652424cc2ae4454a2638a989aa75bb5', '2026-03-13 08:16:32.586243+00:00', '2026-03-13 08:16:32.586243+00:00') ON CONFLICT (key) DO NOTHING;
-INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('low_stock_alerts', 'true', 'f14743e25dab42ee80cb98f14dc0f080', '2026-03-13 08:16:32.586243+00:00', '2026-03-13 08:16:32.586243+00:00') ON CONFLICT (key) DO NOTHING;
-INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('email_notifications', 'true', 'fc7432f91d814a739f6ad038c3ee8a00', '2026-03-13 08:16:32.586243+00:00', '2026-03-13 08:17:45.472715+00:00') ON CONFLICT (key) DO NOTHING;
-INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('vat_enabled', 'true', 'b211421cabfd466295c8b612fe8f6f00', '2026-03-13 08:12:12.552036+00:00', '2026-03-16 14:19:05.687344+00:00') ON CONFLICT (key) DO NOTHING;
-INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('store_email', 'gemsorelimited@gmail.com', 'a4be0f95e0394da381d3a2a952ff7322', '2026-03-13 08:16:32.586243+00:00', '2026-03-16 14:20:49.750033+00:00') ON CONFLICT (key) DO NOTHING;
-INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('usdt_trc20', 'TGbUsVLq6ghBwn2wPVdGMSuXDUCsqiLvsd', '0afc31b79ede4c26a66d80caff645ac0', '2026-03-12 02:45:44.079289+00:00', '2026-03-16 16:57:58.470645+00:00') ON CONFLICT (key) DO NOTHING;
-INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('usdt_bep20', '0x253AdE32755bb0671e2995dA7CE4e67c487e9574', '289723ba3be94a238785e42bdbdbcf59', '2026-03-12 02:45:44.079289+00:00', '2026-03-16 16:57:58.470645+00:00') ON CONFLICT (key) DO NOTHING;
-INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('usdt_erc20', '0x253AdE32755bb0671e2995dA7CE4e67c487e9574', '9afa1692702d46d9a2df3e7efd8b47e9', '2026-03-12 02:45:44.079289+00:00', '2026-03-16 16:57:58.470645+00:00') ON CONFLICT (key) DO NOTHING;
-INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('btc_address', 'bc1qscvk9upw98vpyvqk27yvsjrknuxkgrkat6w06c', 'c0529134653942868f998c5e6fba62bf', '2026-03-12 02:45:44.079289+00:00', '2026-03-16 16:57:58.470645+00:00') ON CONFLICT (key) DO NOTHING;
-INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('vat_rate', '7.5', '7a020677a9754dd9a27c7ae40bff5bb4', '2026-03-13 08:12:12.552036+00:00', '2026-03-17 13:29:03.321888+00:00') ON CONFLICT (key) DO NOTHING;
-INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('btc_to_ngn_rate', '', '2da65a7be3f0495e9503f821d02f8d07', '2026-03-17 14:34:04.091652+00:00', '2026-03-17 14:34:04.091652+00:00') ON CONFLICT (key) DO NOTHING;
-INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('ngn_to_usd_rate', '1600', '9393d1ddab9e45d08557b23545e3d3df', '2026-03-13 08:16:32.586243+00:00', '2026-03-17 14:35:37.593725+00:00') ON CONFLICT (key) DO NOTHING;
+INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('vat_number', 'GB123456789', '87ef44bda4c6429cb267b607ca15c16d', '2026-03-13 08:12:12.552036+00:00', '2026-03-13 08:12:12.552036+00:00') ON CONFLICT (id) DO NOTHING;
+INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('store_name', 'Gems Ore', '9652424cc2ae4454a2638a989aa75bb5', '2026-03-13 08:16:32.586243+00:00', '2026-03-13 08:16:32.586243+00:00') ON CONFLICT (id) DO NOTHING;
+INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('low_stock_alerts', 'true', 'f14743e25dab42ee80cb98f14dc0f080', '2026-03-13 08:16:32.586243+00:00', '2026-03-13 08:16:32.586243+00:00') ON CONFLICT (id) DO NOTHING;
+INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('email_notifications', 'true', 'fc7432f91d814a739f6ad038c3ee8a00', '2026-03-13 08:16:32.586243+00:00', '2026-03-13 08:17:45.472715+00:00') ON CONFLICT (id) DO NOTHING;
+INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('vat_enabled', 'true', 'b211421cabfd466295c8b612fe8f6f00', '2026-03-13 08:12:12.552036+00:00', '2026-03-16 14:19:05.687344+00:00') ON CONFLICT (id) DO NOTHING;
+INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('store_email', 'gemsorelimited@gmail.com', 'a4be0f95e0394da381d3a2a952ff7322', '2026-03-13 08:16:32.586243+00:00', '2026-03-16 14:20:49.750033+00:00') ON CONFLICT (id) DO NOTHING;
+INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('usdt_trc20', 'TGbUsVLq6ghBwn2wPVdGMSuXDUCsqiLvsd', '0afc31b79ede4c26a66d80caff645ac0', '2026-03-12 02:45:44.079289+00:00', '2026-03-16 16:57:58.470645+00:00') ON CONFLICT (id) DO NOTHING;
+INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('usdt_bep20', '0x253AdE32755bb0671e2995dA7CE4e67c487e9574', '289723ba3be94a238785e42bdbdbcf59', '2026-03-12 02:45:44.079289+00:00', '2026-03-16 16:57:58.470645+00:00') ON CONFLICT (id) DO NOTHING;
+INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('usdt_erc20', '0x253AdE32755bb0671e2995dA7CE4e67c487e9574', '9afa1692702d46d9a2df3e7efd8b47e9', '2026-03-12 02:45:44.079289+00:00', '2026-03-16 16:57:58.470645+00:00') ON CONFLICT (id) DO NOTHING;
+INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('btc_address', 'bc1qscvk9upw98vpyvqk27yvsjrknuxkgrkat6w06c', 'c0529134653942868f998c5e6fba62bf', '2026-03-12 02:45:44.079289+00:00', '2026-03-16 16:57:58.470645+00:00') ON CONFLICT (id) DO NOTHING;
+INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('vat_rate', '7.5', '7a020677a9754dd9a27c7ae40bff5bb4', '2026-03-13 08:12:12.552036+00:00', '2026-03-17 13:29:03.321888+00:00') ON CONFLICT (id) DO NOTHING;
+INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('btc_to_ngn_rate', '', '2da65a7be3f0495e9503f821d02f8d07', '2026-03-17 14:34:04.091652+00:00', '2026-03-17 14:34:04.091652+00:00') ON CONFLICT (id) DO NOTHING;
+INSERT INTO settings (key, value, id, created_at, updated_at) VALUES ('ngn_to_usd_rate', '1600', '9393d1ddab9e45d08557b23545e3d3df', '2026-03-13 08:16:32.586243+00:00', '2026-03-17 14:35:37.593725+00:00') ON CONFLICT (id) DO NOTHING;
 
 -- Shipping Locations
 INSERT INTO shipping_locations (country, state, shipping_price, is_free_shipping, delivery_days, id, created_at, updated_at) VALUES ('Nigeria', 'FCT (Abuja)', 0.0, TRUE, '3-5 days', 'f6f5a94011174a2192a62bb8af0e5745', '2026-03-13 08:01:04.897504+00:00', '2026-03-13 08:01:04.897504+00:00') ON CONFLICT (id) DO NOTHING;

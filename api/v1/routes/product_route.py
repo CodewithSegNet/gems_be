@@ -16,23 +16,9 @@ from api.utils.cloudinary_optimizer import optimize_product
 
 products = APIRouter(prefix="/products", tags=["Products"])
 
-# ── In-memory TTL cache ────────────────────────────────────────────────────
-# Safe for Render free tier (single instance). Cleared on every write so data
-# is never stale after a product is created / updated / deleted.
-_cache: dict = {}
-CACHE_TTL = 120  # seconds (2 minutes)
-
-
-def _cache_key(**kwargs) -> str:
-    raw = json.dumps(kwargs, sort_keys=True, default=str)
-    return "products:" + hashlib.md5(raw.encode()).hexdigest()
-
-
 def invalidate_product_cache() -> None:
-    """Bust all cached product-list entries. Call on any create/update/delete."""
-    for k in list(_cache.keys()):
-        if k.startswith("products:"):
-            _cache.pop(k, None)
+    """Retained for backwards compatibility."""
+    pass
 # ──────────────────────────────────────────────────────────────────────────
 
 
@@ -50,36 +36,6 @@ def get_all_products(
     response: Response = None,
     db: Session = Depends(get_db),
 ):
-    ck = _cache_key(
-        gender=gender, category_id=category_id, status=status_filter,
-        search=search, is_best_seller=is_best_seller,
-        is_new_collection=is_new_collection, page=page, limit=limit,
-    )
-
-    # Serve from cache if still fresh
-    if ck in _cache:
-        ts, cached_payload, etag = _cache[ck]
-        if time.time() - ts < CACHE_TTL:
-            if request and request.headers.get("if-none-match") in (f'"{etag}"', etag):
-                return Response(
-                    status_code=status.HTTP_304_NOT_MODIFIED,
-                    headers={
-                        "ETag": f'"{etag}"',
-                        "Cache-Control": "public, max-age=60, stale-while-revalidate=30",
-                    },
-                )
-            return success_response(
-                status_code=status.HTTP_200_OK,
-                message="Products retrieved successfully",
-                data=cached_payload,
-                headers={
-                    "ETag": f'"{etag}"',
-                    "Cache-Control": "public, max-age=60, stale-while-revalidate=30",
-                    "Vary": "Accept-Encoding",
-                    "X-Cache": "HIT",
-                },
-            )
-
     items, total = product_service.get_all(
         db,
         gender=gender,
@@ -120,29 +76,15 @@ def get_all_products(
         result.append(optimize_product(raw))
 
     payload = {"items": result, "total": total, "page": page, "limit": limit}
-    etag = hashlib.md5(json.dumps(payload, default=str).encode()).hexdigest()[:16]
-
-    # Store in cache
-    _cache[ck] = (time.time(), payload, etag)
-
-    if request and request.headers.get("if-none-match") in (f'"{etag}"', etag):
-        return Response(
-            status_code=status.HTTP_304_NOT_MODIFIED,
-            headers={
-                "ETag": f'"{etag}"',
-                "Cache-Control": "public, max-age=60, stale-while-revalidate=30",
-            },
-        )
 
     return success_response(
         status_code=status.HTTP_200_OK,
         message="Products retrieved successfully",
         data=payload,
         headers={
-            "ETag": f'"{etag}"',
-            "Cache-Control": "public, max-age=60, stale-while-revalidate=30",
-            "Vary": "Accept-Encoding",
-            "X-Cache": "MISS",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
         },
     )
 

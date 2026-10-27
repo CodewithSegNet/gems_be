@@ -29,6 +29,15 @@ class CategoryService:
             query = query.filter((Product.gender == norm_gender) | (Product.gender == "unisex"))
         return query.count()
 
+    def get_product_counts(self, db: Session, gender: Optional[str] = None) -> dict:
+        from sqlalchemy import func
+        query = db.query(Product.category_id, func.count(Product.id)).filter(Product.status == "active")
+        if gender:
+            norm_gender = "male" if gender in ("men", "male") else "female" if gender in ("women", "female") else gender
+            query = query.filter((Product.gender == norm_gender) | (Product.gender == "unisex"))
+        rows = query.group_by(Product.category_id).all()
+        return {cat_id: count for cat_id, count in rows if cat_id}
+
     def create(self, db: Session, name: str, description: Optional[str] = None) -> Category:
         existing = db.query(Category).filter(Category.name == name).first()
         if existing:

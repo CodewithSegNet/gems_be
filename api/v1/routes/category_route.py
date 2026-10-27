@@ -19,13 +19,14 @@ def get_all_categories(
     db: Session = Depends(get_db),
 ):
     items = category_service.get_all(db, search=search)
+    counts = category_service.get_product_counts(db, gender=gender)
     result = []
     for c in items:
         result.append({
             "id": c.id,
             "name": c.name,
             "description": c.description,
-            "product_count": category_service.get_product_count(db, c.id, gender=gender),
+            "product_count": counts.get(c.id, 0),
             "created_at": str(c.created_at) if c.created_at else None,
         })
     
